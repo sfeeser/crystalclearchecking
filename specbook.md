@@ -73,6 +73,55 @@ Constraints: UNIQUE(date, check\_number, amount) partial; bank\_fitid UNIQUE; NO
 - Single SQLite file, WAL mode enabled.  
 - Balance calc: starting\_balance \+ SUM(amount) WHERE date \>= starting\_date AND voided \= FALSE AND account \= ?
 
+## Chapter 1.1: Data Durability & Portability
+
+### 1. Hot Backup Mechanism
+
+Since the system operates in WAL (Write-Ahead Logging) mode, a simple file `cp` while the server is active can result in a malformed or "checkpoint-trapped" backup. CCC must provide a safe internal backup mechanism.
+
+* **Implementation:** Utilize the `sqlite3_backup` API (via the Go driver) to perform a "Hot Backup." This locks the source database only momentarily to initialize and then streams pages to a destination file.
+* **CLI Command:** `ccc-server backup --path <destination_path>`
+* If no path is provided, default to `~/.crystalclearchecking/backups/ccc_backup_YYYYMMDD_HHMMSS.db`.
+
+
+* **Safety Check:** Every backup operation must conclude with a `PRAGMA integrity_check` on the *newly created* backup file before reporting success.
+
+### 2. Startup Integrity Verification
+
+On every application launch, before the web server starts, CCC shall:
+
+* Run `PRAGMA integrity_check`.
+* If the check fails, the binary must **panic and exit** with a clear error message, preventing the user from writing new (possibly corrupt) data over a failing database.
+* **Console Output:** "Database integrity verified. [OK]"
+
+### 3. Portable Data Export (The "Sovereign" Exit)
+
+To prevent vendor lock-in and ensure the data survives even if the SQLite format is deprecated in 50 years, CCC provides a human-readable export.
+
+* **Format:** Standardized CSV (UTF-8).
+* **Fields:** All fields from the `transactions` table, including `bank_fitid` and `cleared` status.
+* **Command:** `ccc-server export --format csv`
+* **UI Option:** A "Download Full History (CSV)" button located in the **Settings** or **Reports** section of the web dashboard.
+
+### 4. Restoration Workflow
+
+Restoration is intentionally manual to prevent accidental data overwrites via the UI.
+
+1. Stop the `ccc-server` service.
+2. Rename the existing (corrupt or old) `ledger.db` to `ledger.db.old`.
+3. Copy the desired backup file into the primary location as `ledger.db`.
+4. Restart `ccc-server`.
+
+### 5. Recommended Backup Policy (Admin Guide)
+
+The README shall include a recommended `crontab` entry for the Linux admin:
+
+```bash
+# Every day at 3:00 AM, perform a safe hot backup
+0 3 * * * /path/to/ccc-server backup --path /path/to/backups/daily_backup.db
+
+```
+
 **Chapter 2: File Ingestion & Reconciliation**  
 **Trigger** — Multipart upload via /upload (primary OFX, CSV fallback).
 
