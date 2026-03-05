@@ -82,30 +82,37 @@ This is built for people who value control over convenience.
 
 ## Pairing Your Phone (One-Time Setup)
 
-Crystal Clear Checking uses **local device pairing instead of passwords**. There are no usernames, passwords, email tokens, or cloud accounts. Each device is paired once using a **one-time QR code** generated directly by the server. After pairing, the device receives a rotating **JWT (JSON Web Token)** that keeps the session active through silent refresh. In normal use you never need to log in again unless you log out or revoke the device. Pairing requires **local access to the machine** hosting Crystal Clear Checking. This ensures that only someone with physical access or SSH access to the server can authorize a new device.
+Crystal Clear Checking uses **local device pairing instead of passwords**. There are no usernames, passwords, email tokens, or cloud accounts. Each device is paired once using a **one-time QR code** generated directly by the server. After pairing, the device receives a rotating **JWT (JSON Web Token)** that keeps the session active through silent refresh. In normal use you never need to log in again unless you log out or revoke the device. Pairing requires **local or SSH access to the machine** hosting Crystal Clear Checking. This ensures that only someone with physical access or SSH access to the server can authorize a new device.
 
 
 ## Step-by-Step Pairing
 
-1. If your CCC server has a monitor, just browse the localhost URL `http://127.0.0.1:55888/pair` then skip to step 3
+1. If your CCC server has a browser available, open the pairing page `http://127.0.0.1:55888/pair` then skip to step 3
 
-2. If your CCC server has no monitor (Raspberry Pi, remote server, or VM are usually headlless, so create an SSH tunnel to your CCC server)
+2. If your CCC server is headless (Raspberry Pi, remote server, or VM), create an SSH tunnel to the CCC server)
 
-    ```bash
-    ssh -L 127.0.0.1:55888:127.0.0.1:55888 xxxx@a.b.c.d
-    ````
+   1. Define the server connection variables
+
+        ```bash
+        export CCC_HOST=     #CCC server IP address goes here
+        export CCC_USER=     #CCC server user name goes here
+        ```
+
+    2. Create the SSH tunnel
     
-    > Replace `xxxx@a.b.c.d` with the actual username and IP address of the machine running CCC.
+        ```bash
+        ssh -L 127.0.0.1:55888:127.0.0.1:55888 $CCC_USER@$CCC_HOST
+        ```
     
-    Open the ssh-forwared pairing page locally:
+    3. Open the ssh-forwarded pairing page locally:
 
-    ```bash
-    http://127.0.0.1:55888/pair
-    ```
+        ```
+        http://127.0.0.1:55888/pair
+        ```
 
 3. Start pairing in the browser
 
-    `Click the **PAIR NOW** button`
+    Click the **PAIR NOW** button
 
 4. The server generates a **one-time QR code** and displays it on the page. A plain text URL is also shown as a fallback in case QR scanning is unavailable.
 
@@ -125,23 +132,39 @@ Crystal Clear Checking uses **local device pairing instead of passwords**. There
     > - an **access token** is issued
     > - a **refresh token** is stored in the phone's secure browser cookie
     > - The browser is redirected to the CCC dashboard
-    > - FYI: Pairing tokens automatically expire after a short time (typically 5–10 minutes).
+    > - Pairing tokens automatically expire after a short time (typically 5–10 minutes).
     
 8. Pairing complete
 
-    > - Your device is now paired and fully authorized.
-    > - You can immediately:
-    > - add checks
-    > - upload OFX files
-    > - view balances
-    > - review uncleared transactions
-    > - Silent refresh keeps the session active automatically, so you normally never need to re-pair the device.
-    > - You will only need to repeat the pairing process if you:
-    >     - log out
-    >     - clear browser cookies
-    >     - revoke the device from the server
+    Your device is now paired and fully authorized.
+   
+    You can immediately:  
+      - add checks
+      - upload OFX files
+      - view balances
+      - review uncleared transactions
 
-## License
+    Silent refresh keeps the session active automatically, so you normally never need to re-pair the device.
 
-[MIT License](https://www.google.com/search?q=LICENSE)
+    You will only need to repeat the pairing process if you:
+       - log out
+       - clear browser cookies
+       - revoke the device from the server
 
+
+## Why OFX Instead of Bank Logins
+
+CCC deliberately avoids direct bank logins or aggregation services.
+
+Many financial apps require access to your banking credentials through services such as Plaid or similar APIs. This creates a third party that can access transaction history and account details.
+
+Crystal Clear Checking uses **manual OFX export** instead.
+
+Advantages:
+
+- No sharing bank credentials
+- No third-party financial aggregators
+- No background access to your account
+- Full control over when data is imported
+
+The bank remains the source of truth, but you remain in control of access.
