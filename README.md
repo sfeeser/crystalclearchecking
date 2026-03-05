@@ -76,12 +76,88 @@ CCC intentionally avoids feature creep. It does **NOT** include:
 * Bill pay or automation
 * Multi-user enterprise accounting
 
-## Technical Reality Check
+## Technical Skills Requirement
 
 This is built for people who value control over convenience.
 
 * **Self-Hosted:** You own the binary, the database, and the security.
 * **CLI Comfort:** You should be comfortable building a Go binary and managing a Linux service via SSH.
+
+
+## Pairing Your Phone (One-Time Setup)
+
+Crystal Clear Checking uses **local device pairing instead of passwords**.
+
+There are no usernames, passwords, email tokens, or cloud accounts. Each device is paired once using a **one-time QR code** generated directly by the server.
+
+After pairing, the device receives a rotating **JWT (JSON Web Token)** that keeps the session active through silent refresh. In normal use you never need to log in again unless you log out or revoke the device.
+
+Pairing requires **local access to the machine** hosting Crystal Clear Checking. This ensures that only someone with physical access or SSH access to the server can authorize a new device.
+
+
+## Step-by-Step Pairing
+
+1. Browse the localhost URL `http://127.0.0.1:55888/pair`
+
+    If server has a monitor (laptop or PI with a monitor) then just open a browser to:
+
+    ``` bash
+    http://127.0.0.1:55888/pair
+    ```
+
+    If the server is **headless** (Raspberry Pi, remote server, or VM), create an SSH tunnel from your linux OS:
+
+    ```bash
+    ssh -L 127.0.0.1:55888:127.0.0.1:55888 xxxx@a.b.c.d
+    ````
+    
+    > Replace `xxxx@a.b.c.d` with the actual username and IP address of the machine running CCC.
+    
+    Open the ssh-forwared pairing page locally:
+
+    ```bash
+    http://127.0.0.1:55888/pair
+    ```
+
+    > Either way, note that the pairing interface is intentionally bound to **localhost only**, so it cannot be accessed from the network directly.
+
+3. Start pairing in the browser
+
+    `Click the **PAIR NOW** button`
+
+4. The server generates a **one-time QR code** and displays it on the page. A plain text URL is also shown as a fallback in case QR scanning is unavailable.
+
+5. The QR code contains a **short-lived pairing token (nonce)**.
+
+6. Scan the QR code with your phone's camera.
+
+7. Your phone will automatically open a link that looks like this:
+
+    ```
+    http://192.168.1.50:8080/pair/approve?nonce=abc123...
+    ```
+
+    > This link sends the pairing token to the CCC server for validation.
+    > The server verifies the one-time nonce.
+    > If the token is valid and has not expired:  
+    > - an **access token** is issued
+    > - a **refresh token** is stored in the phone's secure browser cookie
+    > - The browser is redirected to the CCC dashboard
+    > - FYI: Pairing tokens automatically expire after a short time (typically 5–10 minutes).
+    
+8. Pairing complete
+
+    > - Your device is now paired and fully authorized.
+    > - You can immediately:
+    > - add checks
+    > - upload OFX files
+    > - view balances
+    > - review uncleared transactions
+    > - Silent refresh keeps the session active automatically, so you normally never need to re-pair the device.
+    > - You will only need to repeat the pairing process if you:
+    >     - log out
+    >     - clear browser cookies
+    >     - revoke the device from the server
 
 ## License
 
