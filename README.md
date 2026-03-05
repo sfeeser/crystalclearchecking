@@ -45,6 +45,7 @@ We don't use passwords because passwords can be guessed or leaked. We use **Phys
 
 This is built for people who value control over convenience.
 
+* **No monthly subscription costs** 
 * **Linux Centric:** Runs on stock Ubuntu/Debian/PiOS.
 * **Self-Hosted:** You own the binary, you own the DB, you own the security.
 * **Basic CLI Comfort:** You’ll need to be comfortable building a Go binary and running a service. If that sounds like a feature instead of a barrier, you’re exactly who this is built for.
@@ -52,10 +53,3 @@ This is built for people who value control over convenience.
 Crystal and I no longer fight over illegible scribbles. The checkbook stays balanced. We both see the same truth. Welcome to Crystal Clear Checking.
 
 **Let’s keep it clear.**
-
----
-
-### Next Step
-
-This README is a perfect "Face" for the project. **You are ready to start the fresh chat session.** When you do, paste the **SpecBook** first, then this **README**, and tell the AI:
-*"We are starting from a clean slate. This is the SpecBook and the README. Let's begin Phase 1: The Database Schema and Go Structs."*
