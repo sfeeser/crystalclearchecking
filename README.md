@@ -94,8 +94,8 @@ Crystal Clear Checking uses **local device pairing instead of passwords**. There
    1. Define the server connection variables
 
         ```bash
-        export CCC_HOST=     #CCC server IP address goes here
-        export CCC_USER=     #CCC server user name goes here
+        export CCC_HOST=""     # <--- FILL THIS IN (e.g., 192.168.1.50)
+        export CCC_USER=""     # <--- FILL THIS IN (e.g., stuart)
         ```
 
     2. Create the SSH tunnel
