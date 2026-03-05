@@ -34,19 +34,15 @@ It’s not a budgeting app. It’s not a money manager. It’s a bulletproof dig
 git clone https://github.com/yourname/crystalclearchecking
 cd crystalclearchecking
 go build -o ccc-server
-
 ```
 
 ### Run
 
 ```bash
 ./ccc-server --db ~/.crystalclearchecking/ledger.db
-
 ```
 
 Then open your browser to `http://localhost:8080`.
-
----
 
 ## Design Principles
 
@@ -86,26 +82,14 @@ This is built for people who value control over convenience.
 
 ## Pairing Your Phone (One-Time Setup)
 
-Crystal Clear Checking uses **local device pairing instead of passwords**.
-
-There are no usernames, passwords, email tokens, or cloud accounts. Each device is paired once using a **one-time QR code** generated directly by the server.
-
-After pairing, the device receives a rotating **JWT (JSON Web Token)** that keeps the session active through silent refresh. In normal use you never need to log in again unless you log out or revoke the device.
-
-Pairing requires **local access to the machine** hosting Crystal Clear Checking. This ensures that only someone with physical access or SSH access to the server can authorize a new device.
+Crystal Clear Checking uses **local device pairing instead of passwords**. There are no usernames, passwords, email tokens, or cloud accounts. Each device is paired once using a **one-time QR code** generated directly by the server. After pairing, the device receives a rotating **JWT (JSON Web Token)** that keeps the session active through silent refresh. In normal use you never need to log in again unless you log out or revoke the device. Pairing requires **local access to the machine** hosting Crystal Clear Checking. This ensures that only someone with physical access or SSH access to the server can authorize a new device.
 
 
 ## Step-by-Step Pairing
 
-1. Browse the localhost URL `http://127.0.0.1:55888/pair`
+1. If your CCC server has a monitor, just browse the localhost URL `http://127.0.0.1:55888/pair` then skip to step 3
 
-    If server has a monitor (laptop or PI with a monitor) then just open a browser to:
-
-    ``` bash
-    http://127.0.0.1:55888/pair
-    ```
-
-    If the server is **headless** (Raspberry Pi, remote server, or VM), create an SSH tunnel from your linux OS:
+2. If your CCC server has no monitor (Raspberry Pi, remote server, or VM are usually headlless, so create an SSH tunnel to your CCC server)
 
     ```bash
     ssh -L 127.0.0.1:55888:127.0.0.1:55888 xxxx@a.b.c.d
@@ -118,8 +102,6 @@ Pairing requires **local access to the machine** hosting Crystal Clear Checking.
     ```bash
     http://127.0.0.1:55888/pair
     ```
-
-    > Either way, note that the pairing interface is intentionally bound to **localhost only**, so it cannot be accessed from the network directly.
 
 3. Start pairing in the browser
 
