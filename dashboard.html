@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <title>CCC - Dashboard</title>
+</head>
+<body class="container">
+    <nav>
+        <ul><li><strong>Crystal Clear Checking</strong></li></ul>
+        <ul>
+            <li><a href="/add-check" role="button">Add Check</a></li>
+        </ul>
+    </nav>
+    <main>
+        <article>
+            <header>Current Honest Balance</header>
+            <h1 style="color: {{if lt .Balance 0.0}}red{{else}}green{{end}}">
+                ${{printf "%.2f" .Balance}}
+            </h1>
+            <footer>Account: {{.Account}}</footer>
+        </article>
+
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <label for="ofx">Import Bank Truth (OFX)</label>
+            <input type="file" name="ofx_file" accept=".ofx,.qfx">
+            <button type="submit" class="secondary">Upload and Reconcile</button>
+        </form>
+    </main>
+</body>
+</html>
