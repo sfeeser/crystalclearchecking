@@ -129,28 +129,38 @@ func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 // UploadHandler handles the OFX file drop.
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	// 1. If it's a GET, show the upload page
+	if r.Method == http.MethodGet {
+		if err := templates.ExecuteTemplate(w, "upload.html", nil); err != nil {
+			log.Printf("Template error: %v", err)
+			http.Error(w, "Internal Server Error", 500)
+		}
+		return
+	}
+
+	// 2. If it's a POST, process the file
+	if r.Method == http.MethodPost {
+		file, _, err := r.FormFile("ofx_file")
+		if err != nil {
+			http.Error(w, "Failed to upload file", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+
+		// Use the store instance to ingest
+		count, err := store.IngestOFX(file)
+		if err != nil {
+			log.Printf("Ingest failed: %v", err)
+			// Show the user the error so they know if the OFX was "crusty"
+			http.Error(w, fmt.Sprintf("Ingest failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Successfully ingested %d transactions", count)
+
+		// Redirect home to see the new balance and transactions
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
 	}
-
-	file, _, err := r.FormFile("ofx_file")
-	if err != nil {
-		http.Error(w, "Failed to upload file", http.StatusBadRequest)
-		return
-	}
-	defer file.Close()
-
-	count, err := store.IngestOFX(file)
-	if err != nil {
-		log.Printf("Ingest failed: %v", err)
-		http.Error(w, fmt.Sprintf("Ingest failed: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	// Instead of fmt.Fprintf(w, "Success..."), use this:
-	log.Printf("Successfully ingested %d transactions", count)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // PairApproveHandler turns a valid nonce into a 90-day login cookie.

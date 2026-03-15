@@ -14,9 +14,11 @@ import (
 
 func main() {
 	// 1. CLI Flags
-	dbPath := flag.String("db", filepath.Join(os.Getenv("HOME"), ".crystalclearchecking", "ledger.db"), "Path to SQLite database")
+	dbPath := flag.String("db", filepath.Join(".", "data", "ledger.db"), "Path to SQLite database")
 	uiPort := flag.Int("port", 8080, "Port for the main web interface")
 	pairPort := flag.Int("pair-port", 55888, "Port for local SSH pairing (loopback only)")
+
+	flag.Parse()
 
 	// Subcommand logic for Chapter 1.1: Backup
 	if len(os.Args) > 1 && os.Args[1] == "backup" {

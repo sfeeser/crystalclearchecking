@@ -1,13 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
-	"math"
+	"strconv"
+	"strings"
 
 	"github.com/aclindsa/ofxgo"
 )
 
+// IngestOFX is the entry point for bank file processing.
+// It parses the file, updates the balance anchor, and reconciles transactions.
 func (s *Store) IngestOFX(r io.Reader) (int, error) {
 	parsed, err := ofxgo.ParseResponse(r)
 	if err != nil {
@@ -16,17 +20,32 @@ func (s *Store) IngestOFX(r io.Reader) (int, error) {
 
 	count := 0
 	for _, snt := range parsed.Bank {
-		// Use the correct type name: StatementResponse
 		statement, ok := snt.(*ofxgo.StatementResponse)
 		if !ok {
 			continue
 		}
 
-		accountName, err := s.getAccountByExtID(string(statement.BankAcctFrom.AcctID))
+		// 1. Map the Bank's Account ID to our internal account name
+		extID := string(statement.BankAcctFrom.AcctID)
+		accountName, err := s.getAccountByExtID(extID)
 		if err != nil {
-			continue
+			// If account isn't mapped, we use the ExtID as a fallback name
+			accountName = extID
 		}
 
+		// 2. SET THE ANCHOR: The Bank's "Ledger Balance" is our Point of Truth
+		balAmt, _ := parseOFXAmount(statement.BalAmt.String())
+		asOfDate := statement.DtAsOf.Time.Format("2006-01-02")
+
+		_, err = s.db.Exec(`
+			INSERT INTO balance_anchors (anchor_date, amount, account) 
+			VALUES (?, ?, ?)`,
+			asOfDate, balAmt, accountName)
+		if err != nil {
+			return count, fmt.Errorf("failed to set balance anchor: %w", err)
+		}
+
+		// 3. PROCESS TRANSACTIONS
 		for _, tran := range statement.BankTranList.Transactions {
 			if err := s.reconcileOFXTransaction(accountName, tran); err != nil {
 				return count, err
@@ -37,40 +56,92 @@ func (s *Store) IngestOFX(r io.Reader) (int, error) {
 	return count, nil
 }
 
+// reconcileOFXTransaction handles deduplication and matching against manual entries.
 func (s *Store) reconcileOFXTransaction(accountName string, t ofxgo.Transaction) error {
-	// Conversion from ofxgo.Amount (Decimal) to float64
-	amountFloat, _ := t.TrnAmt.Float64()
-	cents := int64(math.Round(amountFloat * 100))
-
-	fitid := string(t.FiTID) // Fixed: FiTID not FITID
-	date := t.DtPosted.Time.Format("2006-01-02")
-	
-	var checkNum *string
-	if t.CheckNum != "" {
-		s := string(t.CheckNum)
-		checkNum = &s
+	// SAFE MATH: Convert string decimal to int64 cents directly
+	cents, err := parseOFXAmount(t.TrnAmt.String())
+	if err != nil {
+		return err
 	}
 
-	if checkNum != nil {
+	fitid := string(t.FiTID)
+	date := t.DtPosted.Time.Format("2006-01-02")
+	description := strings.TrimSpace(string(t.Name))
+
+	var checkNum sql.NullString
+	if t.CheckNum != "" {
+		checkNum = sql.NullString{String: string(t.CheckNum), Valid: true}
+	}
+
+	// MATCHING LOGIC: If it's a check, see if Stuart already entered it manually
+	if checkNum.Valid {
 		var manualID int64
 		err := s.db.QueryRow(`
 			SELECT id FROM transactions 
-			WHERE account = ? AND check_number = ? AND cleared = 0 AND voided = 0 
-			LIMIT 1`, accountName, *checkNum).Scan(&manualID)
+			WHERE account = ? AND check_number = ? AND cleared = 0 
+			LIMIT 1`, accountName, checkNum.String).Scan(&manualID)
 
 		if err == nil {
+			// Found a match! "Clear" the manual transaction and attach the Bank's FITID
 			_, err = s.db.Exec(`
-				UPDATE transactions SET bank_fitid = ?, cleared = 1, original_description = ?
-				WHERE id = ?`, fitid, t.Name, manualID)
+				UPDATE transactions SET fitid = ?, cleared = 1 
+				WHERE id = ?`, fitid, manualID)
 			return err
 		}
 	}
 
-	_, err := s.db.Exec(`
-		INSERT INTO transactions (date, check_number, description, original_description, amount, type, account, bank_fitid, source, cleared)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ofx', 1)
-		ON CONFLICT(bank_fitid) DO NOTHING`,
-		date, checkNum, t.Name, t.Name, cents, t.TrnType.String(), accountName, fitid)
+	// DEDUPLICATION LOGIC: Insert as new, but "ON CONFLICT" do nothing if FITID exists
+	_, err = s.db.Exec(`
+		INSERT INTO transactions (date, check_number, description, amount, type, account, fitid, source, cleared)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 'ofx', 1)
+		ON CONFLICT(fitid) DO NOTHING`,
+		date, checkNum, description, cents, t.TrnType.String(), accountName, fitid)
 
 	return err
+}
+
+// parseOFXAmount converts "123.45" to 12345 (int64 cents) without using float64.
+func parseOFXAmount(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+
+	// Split into dollars and cents
+	parts := strings.Split(s, ".")
+
+	// Handle negative signs correctly
+	negative := false
+	if strings.HasPrefix(parts[0], "-") {
+		negative = true
+		parts[0] = strings.TrimPrefix(parts[0], "-")
+	}
+
+	// Parse Dollars
+	dollars, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Parse Cents
+	var cents int64
+	if len(parts) > 1 {
+		cStr := parts[1]
+		if len(cStr) > 2 {
+			cStr = cStr[:2] // Truncate sub-pennies
+		} else if len(cStr) < 2 {
+			cStr = cStr + "0" // Pad single digits (.5 -> .50)
+		}
+		cents, err = strconv.ParseInt(cStr, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	totalCents := (dollars * 100) + cents
+	if negative {
+		totalCents = -totalCents
+	}
+
+	return totalCents, nil
 }
