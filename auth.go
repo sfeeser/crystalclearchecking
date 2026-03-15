@@ -3,11 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 

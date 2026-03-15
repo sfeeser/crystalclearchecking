@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -129,4 +128,14 @@ func (s *Store) HotBackup(destPath string) error {
 func (s *Store) migrate() error {
 	_, err := s.db.Exec(DBSchema) // DBSchema is the SQL string defined in schema.go
 	return err
+}
+
+// getAccountByExtID finds the internal account name for a bank's external ID.
+func (s *Store) getAccountByExtID(extID string) (string, error) {
+	var name string
+	err := s.db.QueryRow("SELECT name FROM accounts WHERE ext_id = ?", extID).Scan(&name)
+	if err != nil {
+		return "", err
+	}
+	return name, nil
 }
