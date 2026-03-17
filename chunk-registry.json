@@ -251,6 +251,55 @@
       "file_path": "templates.go",
       "business_purpose": "Provides a centralized helper function to execute and render a named HTML template with provided data, handling errors gracefully with HTTP 500 response per specbook Chapter 5 UI rendering requirements",
       "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "head-and-styles-v1-uuid-d3e7f4g9",
+      "short_name": "head-and-styles",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Defines the document head, meta tags, PicoCSS link, and all custom dashboard styles (match grid, cards, amounts, action bar) per specbook Chapter 5 UI & Operational Flows",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "nav-bar-v1-uuid-f8g2h5j1",
+      "short_name": "nav-bar",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Renders the top navigation bar with app title and \"Add Check\" link per specbook Chapter 5 main UI layout",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "balance-header-v1-uuid-h9j3k6l2",
+      "short_name": "balance-header",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Displays the current honest balance and account name in a prominent header card per specbook Chapter 5 dashboard overview",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "matchmaker-section-v1-uuid-k1l5m8n4",
+      "short_name": "matchmaker-section",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Implements the Matchmaker UI with side-by-side grids for manual user entries and unmatched bank records, including card selection, dimming, and confirm/cancel controls per specbook Chapter 5 reconciliation flow",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "upload-section-v1-uuid-n4p7q2r6",
+      "short_name": "upload-section",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Provides the OFX file upload form for importing bank truth per specbook Chapter 2 File Ingestion & Reconciliation",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "history-table-section-v1-uuid-p8r3s9t5",
+      "short_name": "history-table-section",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Renders the paginated \"Recent Settled History\" table of cleared/reconciled transactions, including empty state and infinite scroll trigger row per specbook Chapter 5 UI & Operational Flows",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "dashboard-scripts-v1-uuid-q2t6u1v4",
+      "short_name": "dashboard-scripts",
+      "file_path": "templates/dashboard.html",
+      "business_purpose": "Contains all client-side JavaScript for matchmaker card selection, reconciliation confirmation, void entry, and infinite scroll loading of history per specbook Chapter 5 interactive UI behaviors",
+      "spec_link": "specbook-chapter-5"
     }
   ]
 }
