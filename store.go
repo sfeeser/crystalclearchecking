@@ -144,7 +144,7 @@ func (s *Store) GetHonestBalance(accountName string) (int64, error) {
 	err = s.db.QueryRow(`
         SELECT COALESCE(SUM(amount), 0) 
         FROM transactions 
-        WHERE account = ? AND date > ?`,
+        WHERE account = ? AND date >= ? AND cleared = 0 AND voided = 0`,
 		accountName, anchorDate).Scan(&sum)
 
 	if err != nil {
@@ -175,4 +175,44 @@ func (s *Store) getAccountByExtID(extID string) (string, error) {
 		return "", err
 	}
 	return name, nil
+}
+
+func (s *Store) Reconcile(manualID, bankID int64) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Capture the bank's truth metadata
+	var fitid, bankDesc string
+	var bankCents int64
+	err = tx.QueryRow("SELECT fitid, description, amount FROM transactions WHERE id = ?", bankID).
+		Scan(&fitid, &bankDesc, &bankCents)
+	if err != nil {
+		return err
+	}
+
+	// 2. DELETE the bank record FIRST
+	// This frees up the 'fitid' so it can be reused by the manual entry
+	_, err = tx.Exec("DELETE FROM transactions WHERE id = ?", bankID)
+	if err != nil {
+		return err
+	}
+
+	// 3. NOW update Stuart's record with the bank's data
+	_, err = tx.Exec(`
+        UPDATE transactions 
+        SET amount = ?, cleared = 1, fitid = ?, original_description = ? 
+        WHERE id = ?`, bankCents, fitid, bankDesc, manualID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (s *Store) VoidTransaction(id int64) error {
+	_, err := s.db.Exec("UPDATE transactions SET voided = 1 WHERE id = ? AND cleared = 0", id)
+	return err
 }

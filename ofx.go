@@ -58,7 +58,6 @@ func (s *Store) IngestOFX(r io.Reader) (int, error) {
 
 // reconcileOFXTransaction handles deduplication and matching against manual entries.
 func (s *Store) reconcileOFXTransaction(accountName string, t ofxgo.Transaction) error {
-	// SAFE MATH: Convert string decimal to int64 cents directly
 	cents, err := parseOFXAmount(t.TrnAmt.String())
 	if err != nil {
 		return err
@@ -68,34 +67,46 @@ func (s *Store) reconcileOFXTransaction(accountName string, t ofxgo.Transaction)
 	date := t.DtPosted.Time.Format("2006-01-02")
 	description := strings.TrimSpace(string(t.Name))
 
+	// Default to Cleared for boring stuff (ACH/Debit)
+	clearedStatus := 1
+
 	var checkNum sql.NullString
 	if t.CheckNum != "" {
 		checkNum = sql.NullString{String: string(t.CheckNum), Valid: true}
+		// It's a check! If we don't find a match, it MUST be a Rogue.
+		clearedStatus = 0
 	}
 
-	// MATCHING LOGIC: If it's a check, see if Stuart already entered it manually
+	// 1. ATTEMPT PERFECT MATCH (Check Number)
 	if checkNum.Valid {
 		var manualID int64
 		err := s.db.QueryRow(`
-			SELECT id FROM transactions 
-			WHERE account = ? AND check_number = ? AND cleared = 0 
-			LIMIT 1`, accountName, checkNum.String).Scan(&manualID)
+            SELECT id FROM transactions 
+            WHERE account = ? AND check_number = ? AND cleared = 0 
+            LIMIT 1`, accountName, checkNum.String).Scan(&manualID)
 
 		if err == nil {
-			// Found a match! "Clear" the manual transaction and attach the Bank's FITID
-			_, err = s.db.Exec(`
-				UPDATE transactions SET fitid = ?, cleared = 1 
-				WHERE id = ?`, fitid, manualID)
+			_, err = s.db.Exec(`UPDATE transactions SET fitid = ?, cleared = 1 WHERE id = ?`, fitid, manualID)
 			return err
 		}
 	}
 
-	// DEDUPLICATION LOGIC: Insert as new, but "ON CONFLICT" do nothing if FITID exists
+	// 2. ATTEMPT FUZZY MATCH (Amount Only)
+	// If the amount matches a manual entry, send it to the Matchmaker as a Rogue!
+	var hasSimilarManual bool
+	s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM transactions WHERE account = ? AND amount = ? AND cleared = 0)`,
+		accountName, cents).Scan(&hasSimilarManual)
+
+	if hasSimilarManual {
+		clearedStatus = 0
+	}
+
+	// 3. INSERT (Either as a Settled item or a Rogue)
 	_, err = s.db.Exec(`
-		INSERT INTO transactions (date, check_number, description, amount, type, account, fitid, source, cleared)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 'ofx', 1)
-		ON CONFLICT(fitid) DO NOTHING`,
-		date, checkNum, description, cents, t.TrnType.String(), accountName, fitid)
+        INSERT INTO transactions (date, check_number, description, amount, type, account, fitid, source, cleared)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'ofx', ?)
+        ON CONFLICT(fitid) DO NOTHING`,
+		date, checkNum, description, cents, t.TrnType.String(), accountName, fitid, clearedStatus)
 
 	return err
 }

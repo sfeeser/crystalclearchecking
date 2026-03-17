@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <title>CCC - Dashboard</title>
+    <style>
+        .match-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .match-card { cursor: pointer; transition: transform 0.1s; border: 2px solid transparent; margin-bottom: 1rem; }
+        .match-card:hover { transform: scale(1.02); border-color: var(--primary); }
+        .selected { border-color: var(--primary) !important; background-color: rgba(0, 123, 255, 0.1); }
+        .dimmed { opacity: 0.2; filter: grayscale(1); }
+        .amount-neg { color: #d81b60; font-weight: bold; }
+        .matching-ui { margin-top: 20px; text-align: center; display: none; position: sticky; bottom: 20px; z-index: 100; }
+        .action-bar { display: flex; gap: 1rem; align-items: center; }
+    </style>
 </head>
 <body class="container">
     <nav>
@@ -13,46 +23,222 @@
             <li><a href="/add-check" role="button">Add Check</a></li>
         </ul>
     </nav>
+
     <main>
         <article>
             <header>Current Honest Balance</header>
-            <h1 style="color: {{if lt .Balance 0.0}}red{{else}}green{{end}}">
-                ${{printf "%.2f" .Balance}}
-            </h1>
+            <h1 style="color: green">${{printf "%.2f" .Balance}}</h1>
             <footer>Account: {{.Account}}</footer>
         </article>
 
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <label for="ofx">Import Bank Truth (OFX)</label>
-            <input type="file" name="ofx_file" accept=".ofx,.qfx">
-            <button type="submit" class="secondary">Upload and Reconcile</button>
-        </form>
+        <section id="matchmaker">
+            <h3>The Matchmaker</h3>
+            <div class="match-grid">
+                <div>
+                    <small>Your Entries (Manual)</small>
+                    {{range .UserEntries}}
+                    <article class="match-card user-entry" data-id="{{.ID}}" data-amount="{{printf "%.2f" .Amount}}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong>{{.Date}}</strong> — {{.Desc}}<br>
+                                <span class="amount-neg">${{printf "%.2f" .Amount}}</span> <small>#{{.CheckNo}}</small>
+                            </div>
+                            <button onclick="voidEntry(event, {{.ID}})" class="outline" style="padding: 0 5px; font-size: 0.6rem; border-color: #d81b60; color: #d81b60;">Void</button>
+                        </div>
+                    </article>
+                    {{else}}
+                    <p><small>No open manual entries.</small></p>
+                    {{end}}
+                </div>
+
+                <div>
+                    <small>Bank Records (OFX)</small>
+                    {{range .BankRecords}}
+                    <article class="match-card bank-record" data-id="{{.ID}}" data-amount="{{printf "%.2f" .Amount}}">
+                        <strong>{{.Date}}</strong> — {{.Desc}}<br>
+                        <span class="amount-neg">${{printf "%.2f" .Amount}}</span> <small>#{{.CheckNo}}</small>
+                    </article>
+                    {{else}}
+                    <p><small>No unlinked bank records.</small></p>
+                    {{end}}
+                </div>
+            </div>
+
+            <div id="reconcile-ui" class="matching-ui">
+                <article>
+                    <button id="confirm-match" class="contrast">Confirm Match & Link</button>
+                    <button onclick="resetMatch()" class="secondary outline">Cancel</button>
+                </article>
+            </div>
+        </section>
+
+        <hr>
+
+        <section>
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <label for="ofx">Import Bank Truth (OFX)</label>
+                <div class="action-bar">
+                    <input type="file" name="ofx_file" accept=".ofx,.qfx" required>
+                    <button type="submit" class="secondary">Upload Truth</button>
+                </div>
+            </form>
+        </section>
+
+        <h3>Recent Settled History</h3>
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    {{range .History}}
+                    <tr>
+                        <td>{{.Date}}</td>
+                        <td>{{.Desc}}</td>
+                        <td class="amount-neg">${{printf "%.2f" .Amount}}</td>
+                        <td><mark>{{.Source}}</mark></td>
+                    </tr>
+                    {{else}}
+                    <tr id="empty-history-notice"><td colspan="4" style="text-align:center;">No history yet.</td></tr>
+                    {{end}}
+                    <tr id="infinite-scroll-trigger">
+                        <td colspan="4" style="text-align:center; padding: 2rem;">
+                            <small id="load-status">Scroll for more history...</small>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </figure>
     </main>
-    <figure>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Check #</th>
-            <th>Description</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{range .Transactions}}
-          <tr>
-            <td>{{.Date}}</td>
-            <td>{{.CheckNo}}</td>
-            <td>{{.Desc}}</td>
-            <td style="color: #d81b60;">{{printf "%.2f" .Amount}}</td>
-          </tr>
-          {{else}}
-          <tr>
-            <td colspan="4" style="text-align: center;">No uncleared checks. You're up to date!</td>
-          </tr>
-          {{end}}
-        </tbody>
-      </table>
-    </figure>
-</body>
-</html>
+
+<script>
+    let selectedUser = null;
+    let selectedBank = null;
+
+    document.querySelectorAll('.match-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const isUser = card.classList.contains('user-entry');
+            const amount = card.dataset.amount;
+
+            if (isUser) {
+                selectedUser = card;
+                document.querySelectorAll('.user-entry').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                document.querySelectorAll('.bank-record').forEach(r => {
+                    r.classList.toggle('dimmed', r.dataset.amount !== amount);
+                });
+            } else {
+                selectedBank = card;
+                document.querySelectorAll('.bank-record').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            }
+
+            if (selectedUser && selectedBank) {
+                const uAmt = parseFloat(selectedUser.dataset.amount);
+                const bAmt = parseFloat(selectedBank.dataset.amount);
+                const btn = document.getElementById('confirm-match');
+                document.getElementById('reconcile-ui').style.display = 'block';
+
+                if (uAmt !== bAmt) {
+                    btn.innerText = `Correct My Entry to $${Math.abs(bAmt).toFixed(2)} & Link`;
+                    btn.style.backgroundColor = "#d81b60"; 
+                } else {
+                    btn.innerText = "Confirm Match & Link";
+                    btn.style.backgroundColor = ""; 
+                }
+            }
+        });
+    });
+
+    function resetMatch() {
+        selectedUser = null;
+        selectedBank = null;
+        document.querySelectorAll('.match-card').forEach(c => {
+            c.classList.remove('selected', 'dimmed');
+        });
+        document.getElementById('reconcile-ui').style.display = 'none';
+    }
+
+    function voidEntry(event, id) {
+        event.stopPropagation(); 
+        if (!confirm("Are you sure you want to void this entry?")) return;
+
+        fetch('/void?id=' + id, { method: 'POST' })
+        .then(res => {
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert("Failed to void entry.");
+            }
+        });
+    }
+
+    document.getElementById('confirm-match')?.addEventListener('click', () => {
+        const payload = {
+            manual_id: parseInt(selectedUser.dataset.id),
+            bank_id: parseInt(selectedBank.dataset.id)
+        };
+
+        fetch('/reconcile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(res => { 
+            if(res.ok) { window.location.reload(); }
+        });
+    });
+
+    // INFINITE SCROLL
+    let currentPage = 0;
+    let isLoading = false;
+    let reachedEnd = false;
+
+    const trigger = document.getElementById('infinite-scroll-trigger');
+    const historyBody = document.getElementById('history-body');
+    const statusText = document.getElementById('load-status');
+
+    const observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !isLoading && !reachedEnd) {
+            loadMoreHistory();
+        }
+    }, { threshold: 0.1 });
+
+    if (trigger) observer.observe(trigger);
+
+    function loadMoreHistory() {
+        isLoading = true;
+        currentPage++;
+        statusText.innerText = "Loading more...";
+
+        fetch(`/?page=${currentPage}&format=json`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data || data.length === 0) {
+                    reachedEnd = true;
+                    statusText.innerText = "End of history";
+                    observer.unobserve(trigger);
+                    return;
+                }
+
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.date}</td>
+                        <td>${item.desc}</td>
+                        <td class="amount-neg">$${item.amount.toFixed(2)}</td>
+                        <td><mark>${item.source}</mark></td>
+                    `;
+                    historyBody.insertBefore(row, trigger);
+                });
+
+                isLoading = false;
+                statusText.innerText = "Scroll for more history...";
+            });
+    }
+</script>
+</body></html>

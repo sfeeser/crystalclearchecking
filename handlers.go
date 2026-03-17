@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -15,55 +16,100 @@ var store *Store
 
 // DashboardHandler renders the main "Honest Truth" view.
 func DashboardHandler(w http.ResponseWriter, r *http.Request) {
-	const accountName = "Joint Checking"
+	const accountName = "Joint Checking" // In the future, this comes from a session/user
+	const pageSize = 20
 
-	// 1. Get the Big Number
-	balance, err := store.GetHonestBalance(accountName)
+	// 1. Get Page Number from URL (e.g., /?page=1)
+	pageStr := r.URL.Query().Get("page")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 0 {
+		page = 0
+	}
+	offset := page * pageSize
+
+	// 2. Calculate the "Honest Balance" (Always needed for the header)
+	balanceCents, err := store.GetHonestBalance(accountName)
 	if err != nil {
 		log.Printf("Balance error: %v", err)
 		http.Error(w, "Failed to calculate balance", http.StatusInternalServerError)
 		return
 	}
-
-	// 2. Get the "Abstract Art" (Uncleared Transactions)
-	rows, err := store.db.Query(`
-		SELECT date, check_number, description, amount 
-		FROM transactions 
-		WHERE account = ? AND cleared = 0 AND voided = 0
-		ORDER BY date DESC`, accountName)
-	if err != nil {
-		http.Error(w, "Failed to load transactions", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
+	balanceDisplay := float64(balanceCents) / 100.0
 
 	type txn struct {
-		Date    string
-		CheckNo string
-		Desc    string
-		Amount  float64
+		ID      int64   `json:"id"`
+		Date    string  `json:"date"`
+		CheckNo string  `json:"check_no"`
+		Desc    string  `json:"desc"`
+		Amount  float64 `json:"amount"`
+		Source  string  `json:"source"`
 	}
-	var txns []txn
 
-	for rows.Next() {
-		var t txn
-		var cents int64
-		if err := rows.Scan(&t.Date, &t.CheckNo, &t.Desc, &cents); err != nil {
-			continue
+	// Helper to fetch data
+	fetch := func(query string, args ...interface{}) []txn {
+		rows, err := store.db.Query(query, args...)
+		if err != nil {
+			log.Printf("Query error: %v", err)
+			return nil
 		}
-		t.Amount = float64(cents) / 100.0
-		txns = append(txns, t)
+		defer rows.Close()
+		var list []txn
+		for rows.Next() {
+			var t txn
+			var cents int64
+			// Note: History query and Matchmaker query must select columns in this exact order
+			if err := rows.Scan(&t.ID, &t.Date, &t.CheckNo, &t.Desc, &cents, &t.Source); err != nil {
+				log.Printf("Scan error: %v", err)
+				continue
+			}
+			t.Amount = float64(cents) / 100.0
+			list = append(list, t)
+		}
+		return list
 	}
 
-	// 3. Package it for the Template
+	// 3. Fetch History (with Pagination)
+	history := fetch(`
+        SELECT id, date, check_number, description, amount, source 
+        FROM transactions 
+        WHERE account = ? AND cleared = 1 
+        ORDER BY date DESC, id DESC 
+        LIMIT ? OFFSET ?`, accountName, pageSize, offset)
+
+	// 4. Handle AJAX/Lazy-Loading Request
+	// If the client asks for JSON, we stop here and just send the history slice
+	if r.URL.Query().Get("format") == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(history)
+		return
+	}
+
+	// 5. Fetch Matchmaker Data (Only needed for the initial full page load)
+	userEntries := fetch(`
+        SELECT id, date, check_number, description, amount, source 
+        FROM transactions 
+        WHERE account = ? AND source = 'manual' AND cleared = 0 AND voided = 0 
+        ORDER BY date ASC`, accountName)
+
+	bankRecords := fetch(`
+        SELECT id, date, check_number, description, amount, source 
+        FROM transactions 
+        WHERE account = ? AND source = 'ofx' AND cleared = 0 
+        ORDER BY date ASC`, accountName)
+
+	// 6. Render Full HTML Page
 	data := struct {
-		Account      string
-		Balance      float64
-		Transactions []txn
+		Balance     float64
+		Account     string
+		UserEntries []txn
+		BankRecords []txn
+		History     []txn
 	}{
-		Account:      accountName,
-		Balance:      float64(balance) / 100.0,
-		Transactions: txns,
+		Balance:     balanceDisplay,
+		Account:     accountName,
+		UserEntries: userEntries,
+		BankRecords: bankRecords,
+		History:     history,
 	}
 
 	templates.ExecuteTemplate(w, "dashboard.html", data)
@@ -200,4 +246,50 @@ func PairApproveHandler(w http.ResponseWriter, r *http.Request) {
 	host, _, _ := net.SplitHostPort(r.Host)
 	dashboardURL := fmt.Sprintf("http://%s:8080/", host)
 	http.Redirect(w, r, dashboardURL, http.StatusSeeOther)
+}
+
+func ReconcileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ManualID int64 `json:"manual_id"`
+		BankID   int64 `json:"bank_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Call the database logic to merge them
+	err := store.Reconcile(req.ManualID, req.BankID)
+	if err != nil {
+		log.Printf("Reconciliation failed: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func VoidHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	idStr := r.URL.Query().Get("id")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
+
+	// Update the DB to mark it voided
+	err := store.VoidTransaction(id)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

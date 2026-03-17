@@ -52,6 +52,8 @@ func main() {
 	mux.Handle("/", ValidateJWT(http.HandlerFunc(DashboardHandler)))
 	mux.Handle("/add-check", ValidateJWT(http.HandlerFunc(AddCheckHandler)))
 	mux.Handle("/upload", ValidateJWT(http.HandlerFunc(UploadHandler)))
+	mux.Handle("/reconcile", ValidateJWT(http.HandlerFunc(ReconcileHandler)))
+	mux.Handle("/void", ValidateJWT(http.HandlerFunc(VoidHandler)))
 
 	// Public/Pairing Routes (Chapter 4)
 	pairMux := http.NewServeMux()
