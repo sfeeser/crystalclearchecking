@@ -1,5 +1,8 @@
 package main
 
+// CHUNK_START: imports-and-package-v1-uuid-p5q9r2s8
+// BUSINESS_PURPOSE: Declares the package and lists all required imports for the data access layer (Store). Single source of truth for database, file path, and time handling dependencies. Keep minimal; add new imports here during data-layer refactors.
+// SPEC_LINK: specbook-chapter-1 (Data Model & Persistence) + non-negotiables on minimal dependencies
 import (
 	"database/sql"
 	"fmt"
@@ -9,7 +12,11 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+// CHUNK_END: imports-and-package-v1-uuid-p5q9r2s8
 
+// CHUNK_START: store-struct-and-newstore-v1-uuid-t3u7v4w1
+// BUSINESS_PURPOSE: Defines the Store struct (db connection holder) and initializes the SQLite connection, creates directories, enables WAL mode, runs migrations, sets schema version, and verifies integrity per specbook Chapter 1 persistence requirements
+// SPEC_LINK: specbook-chapter-1 + chapter-1.1
 type Store struct {
 	db     *sql.DB
 	dbPath string
@@ -60,7 +67,11 @@ func NewStore(dbPath string) (*Store, error) {
 	fmt.Println("--- DEBUG: NEWSTORE SUCCESS (DB SHOULD BE > 0 BYTES) ---")
 	return s, nil
 }
+// CHUNK_END: store-struct-and-newstore-v1-uuid-t3u7v4w1
 
+// CHUNK_START: migrate-method-v1-uuid-v8w2x5y9
+// BUSINESS_PURPOSE: Executes initial schema creation for transactions, balance_anchors, and accounts tables if they do not exist per specbook Chapter 1 data model
+// SPEC_LINK: specbook-chapter-1
 func (s *Store) migrate() error {
 	// 1. Transactions Table
 	_, err := s.db.Exec(`
@@ -106,7 +117,11 @@ func (s *Store) migrate() error {
     `)
 	return err
 }
+// CHUNK_END: migrate-method-v1-uuid-v8w2x5y9
 
+// CHUNK_START: verify-integrity-v1-uuid-x1y6z3a7
+// BUSINESS_PURPOSE: Runs SQLite PRAGMA integrity_check to verify database consistency after initialization or backup per specbook Chapter 1.1 durability non-negotiables
+// SPEC_LINK: specbook-chapter-1.1
 func (s *Store) VerifyIntegrity() error {
 	var result string
 	err := s.db.QueryRow("PRAGMA integrity_check;").Scan(&result)
@@ -118,8 +133,11 @@ func (s *Store) VerifyIntegrity() error {
 	}
 	return nil
 }
+// CHUNK_END: verify-integrity-v1-uuid-x1y6z3a7
 
-// GetHonestBalance uses the NEW balance_anchors table
+// CHUNK_START: get-honest-balance-v1-uuid-z4a9b2c8
+// BUSINESS_PURPOSE: Calculates the "honest" current balance by applying post-anchor transactions to the latest balance anchor, handling missing anchors gracefully per specbook Chapter 1 data model
+// SPEC_LINK: specbook-chapter-1
 func (s *Store) GetHonestBalance(accountName string) (int64, error) {
 	var anchorAmount int64
 	var anchorDate string
@@ -153,8 +171,11 @@ func (s *Store) GetHonestBalance(accountName string) (int64, error) {
 
 	return anchorAmount + sum, nil
 }
+// CHUNK_END: get-honest-balance-v1-uuid-z4a9b2c8
 
-// HotBackup remains the same (Modern VACUUM INTO approach)
+// CHUNK_START: hot-backup-v1-uuid-b7c3d6e1
+// BUSINESS_PURPOSE: Performs a hot backup using VACUUM INTO to create a consistent snapshot without locking the live database per specbook Chapter 1.1 durability & hot backup requirements
+// SPEC_LINK: specbook-chapter-1.1
 func (s *Store) HotBackup(destPath string) error {
 	if destPath == "" {
 		timestamp := time.Now().Format("20060102_150405")
@@ -166,8 +187,11 @@ func (s *Store) HotBackup(destPath string) error {
 	_, err := s.db.Exec(fmt.Sprintf("VACUUM INTO '%s';", destPath))
 	return err
 }
+// CHUNK_END: hot-backup-v1-uuid-b7c3d6e1
 
-// getAccountByExtID finds the internal account name for a bank's external ID.
+// CHUNK_START: get-account-by-extid-v1-uuid-d9e4f2g5
+// BUSINESS_PURPOSE: Maps a bank's external account ID (from OFX) to the internal account name for reconciliation per specbook Chapter 2 ingestion flow
+// SPEC_LINK: specbook-chapter-2
 func (s *Store) getAccountByExtID(extID string) (string, error) {
 	var name string
 	err := s.db.QueryRow("SELECT name FROM accounts WHERE ext_id = ?", extID).Scan(&name)
@@ -176,7 +200,11 @@ func (s *Store) getAccountByExtID(extID string) (string, error) {
 	}
 	return name, nil
 }
+// CHUNK_END: get-account-by-extid-v1-uuid-d9e4f2g5
 
+// CHUNK_START: reconcile-transaction-v1-uuid-f2g8h4j9
+// BUSINESS_PURPOSE: Reconciles a manual entry with a bank transaction by deleting the bank record and updating the manual one with bank's fitid/description/amount in a transaction per specbook Chapter 2 reconciliation rules
+// SPEC_LINK: specbook-chapter-2
 func (s *Store) Reconcile(manualID, bankID int64) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -211,8 +239,13 @@ func (s *Store) Reconcile(manualID, bankID int64) error {
 
 	return tx.Commit()
 }
+// CHUNK_END: reconcile-transaction-v1-uuid-f2g8h4j9
 
+// CHUNK_START: void-transaction-v1-uuid-h5j1k7m3
+// BUSINESS_PURPOSE: Marks a transaction as voided (only if not already cleared) per specbook Chapter 5 transaction management
+// SPEC_LINK: specbook-chapter-5
 func (s *Store) VoidTransaction(id int64) error {
 	_, err := s.db.Exec("UPDATE transactions SET voided = 1 WHERE id = ? AND cleared = 0", id)
 	return err
 }
+// CHUNK_END: void-transaction-v1-uuid-h5j1k7m3
