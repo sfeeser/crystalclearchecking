@@ -1,5 +1,8 @@
 package main
 
+// CHUNK_START: imports-and-package-v1-uuid-h2k9m3p7
+// BUSINESS_PURPOSE: Declares the package and lists all required imports for HTTP handlers. This is the single source of truth for dependencies used in request handling, response formatting, and time/date logic. Keep minimal; add new imports here first during refactors or feature additions.
+// SPEC_LINK: specbook-chapter-5 (UI & Operational Flows) + non-negotiables on minimal dependencies
 import (
 	"encoding/json"
 	"fmt"
@@ -10,11 +13,14 @@ import (
 	"strings"
 	"time"
 )
+// CHUNK_END: imports-and-package-v1-uuid-h2k9m3p7
 
 // Global instance of the store (initialized in main.go)
 var store *Store
 
-// DashboardHandler renders the main "Honest Truth" view.
+// CHUNK_START: dashboard-handler-v1-uuid-a3c7d2f8
+// BUSINESS_PURPOSE: Renders the main dashboard ("Honest Truth" view) with honest balance, paginated cleared history, pending user entries, and unmatched bank records per specbook Chapter 5 (UI & Operational Flows)
+// SPEC_LINK: specbook-chapter-5
 func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 	const accountName = "Joint Checking" // In the future, this comes from a session/user
 	const pageSize = 20
@@ -70,10 +76,10 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Fetch History (with Pagination)
 	history := fetch(`
-        SELECT id, date, check_number, description, amount, source 
-        FROM transactions 
-        WHERE account = ? AND cleared = 1 
-        ORDER BY date DESC, id DESC 
+        SELECT id, date, check_number, description, amount, source
+        FROM transactions
+        WHERE account = ? AND cleared = 1
+        ORDER BY date DESC, id DESC
         LIMIT ? OFFSET ?`, accountName, pageSize, offset)
 
 	// 4. Handle AJAX/Lazy-Loading Request
@@ -86,15 +92,14 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 5. Fetch Matchmaker Data (Only needed for the initial full page load)
 	userEntries := fetch(`
-        SELECT id, date, check_number, description, amount, source 
-        FROM transactions 
-        WHERE account = ? AND source = 'manual' AND cleared = 0 AND voided = 0 
+        SELECT id, date, check_number, description, amount, source
+        FROM transactions
+        WHERE account = ? AND source = 'manual' AND cleared = 0 AND voided = 0
         ORDER BY date ASC`, accountName)
-
 	bankRecords := fetch(`
-        SELECT id, date, check_number, description, amount, source 
-        FROM transactions 
-        WHERE account = ? AND source = 'ofx' AND cleared = 0 
+        SELECT id, date, check_number, description, amount, source
+        FROM transactions
+        WHERE account = ? AND source = 'ofx' AND cleared = 0
         ORDER BY date ASC`, accountName)
 
 	// 6. Render Full HTML Page
@@ -111,10 +116,13 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 		BankRecords: bankRecords,
 		History:     history,
 	}
-
 	templates.ExecuteTemplate(w, "dashboard.html", data)
 }
+// CHUNK_END: dashboard-handler-v1-uuid-a3c7d2f8
 
+// CHUNK_START: add-check-handler-v1-uuid-b8e4f1c9
+// BUSINESS_PURPOSE: Handles GET (show form) and POST (manual paper check entry) with strict financial parsing (cents conversion, always negative outflow) per specbook Chapter 5 (transaction entry flow)
+// SPEC_LINK: specbook-chapter-5
 func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if err := templates.ExecuteTemplate(w, "add-check.html", nil); err != nil {
@@ -133,11 +141,9 @@ func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 		// --- Border Control: String-to-Int Manual Parsing ---
 		var cents int64
 		parts := strings.Split(amountStr, ".")
-
 		// 1. Process Dollars
 		dollars, _ := strconv.ParseInt(parts[0], 10, 64)
 		cents = dollars * 100
-
 		// 2. Process Fractions (Fixed-Point Parsing)
 		if len(parts) > 1 {
 			fraction := parts[1]
@@ -150,7 +156,6 @@ func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 			pennies, _ := strconv.ParseInt(fraction, 10, 64)
 			cents += pennies
 		}
-
 		// Ensure financial integrity: Check is always an outflow (negative)
 		if cents > 0 {
 			cents = -cents
@@ -158,10 +163,9 @@ func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 
 		// 3. Save to DB
 		_, err := store.db.Exec(`
-			INSERT INTO transactions (date, check_number, description, amount, type, account, source, cleared)
-			VALUES (?, ?, ?, ?, 'Check', 'Joint Checking', 'manual', 0)`,
+INSERT INTO transactions (date, check_number, description, amount, type, account, source, cleared)
+VALUES (?, ?, ?, ?, 'Check', 'Joint Checking', 'manual', 0)`,
 			date, checkNum, desc, cents)
-
 		if err != nil {
 			log.Printf("DB Error: %v", err)
 			http.Error(w, "Failed to save transaction", http.StatusInternalServerError)
@@ -172,8 +176,11 @@ func AddCheckHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
+// CHUNK_END: add-check-handler-v1-uuid-b8e4f1c9
 
-// UploadHandler handles the OFX file drop.
+// CHUNK_START: upload-ofx-handler-v1-uuid-c1a9e6b2
+// BUSINESS_PURPOSE: Handles GET (upload form) and POST (OFX file ingestion & reconciliation trigger) per specbook Chapter 2 (File Ingestion & Reconciliation)
+// SPEC_LINK: specbook-chapter-2
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. If it's a GET, show the upload page
 	if r.Method == http.MethodGet {
@@ -201,15 +208,17 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Ingest failed: %v", err), http.StatusInternalServerError)
 			return
 		}
-
 		log.Printf("Successfully ingested %d transactions", count)
 
 		// Redirect home to see the new balance and transactions
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
 }
+// CHUNK_END: upload-ofx-handler-v1-uuid-c1a9e6b2
 
-// PairApproveHandler turns a valid nonce into a 90-day login cookie.
+// CHUNK_START: pair-approve-handler-v1-uuid-d5f2c7a4
+// BUSINESS_PURPOSE: Consumes a valid pairing nonce (one-time use) and issues a 90-day JWT cookie, redirecting to the main UI per specbook Chapter 4 (pairing completion)
+// SPEC_LINK: specbook-chapter-4
 func PairApproveHandler(w http.ResponseWriter, r *http.Request) {
 	nonce := r.URL.Query().Get("nonce")
 
@@ -247,7 +256,11 @@ func PairApproveHandler(w http.ResponseWriter, r *http.Request) {
 	dashboardURL := fmt.Sprintf("http://%s:8080/", host)
 	http.Redirect(w, r, dashboardURL, http.StatusSeeOther)
 }
+// CHUNK_END: pair-approve-handler-v1-uuid-d5f2c7a4
 
+// CHUNK_START: reconcile-handler-v1-uuid-e9b3d8f1
+// BUSINESS_PURPOSE: Handles POST requests to reconcile a manual user entry with a bank/ofx record per specbook Chapter 2 (reconciliation logic)
+// SPEC_LINK: specbook-chapter-2
 func ReconcileHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -258,7 +271,6 @@ func ReconcileHandler(w http.ResponseWriter, r *http.Request) {
 		ManualID int64 `json:"manual_id"`
 		BankID   int64 `json:"bank_id"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -274,7 +286,11 @@ func ReconcileHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+// CHUNK_END: reconcile-handler-v1-uuid-e9b3d8f1
 
+// CHUNK_START: void-handler-v1-uuid-f2c4e9a6
+// BUSINESS_PURPOSE: Handles POST to void/mark a transaction as voided per specbook Chapter 5 (transaction management)
+// SPEC_LINK: specbook-chapter-5
 func VoidHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -293,3 +309,4 @@ func VoidHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+// CHUNK_END: void-handler-v1-uuid-f2c4e9a6
