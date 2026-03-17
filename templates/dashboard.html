@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
+<!-- CHUNK_START: head-and-styles-v1-uuid-d3e7f4g9 -->
+<!-- BUSINESS_PURPOSE: Defines the document head, meta tags, PicoCSS link, and all custom dashboard styles (match grid, cards, amounts, action bar) per specbook Chapter 5 UI & Operational Flows -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -16,6 +20,11 @@
         .action-bar { display: flex; gap: 1rem; align-items: center; }
     </style>
 </head>
+<!-- CHUNK_END: head-and-styles-v1-uuid-d3e7f4g9 -->
+
+<!-- CHUNK_START: nav-bar-v1-uuid-f8g2h5j1 -->
+<!-- BUSINESS_PURPOSE: Renders the top navigation bar with app title and "Add Check" link per specbook Chapter 5 main UI layout -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
 <body class="container">
     <nav>
         <ul><li><strong>Crystal Clear Checking</strong></li></ul>
@@ -23,14 +32,22 @@
             <li><a href="/add-check" role="button">Add Check</a></li>
         </ul>
     </nav>
+<!-- CHUNK_END: nav-bar-v1-uuid-f8g2h5j1 -->
 
+<!-- CHUNK_START: balance-header-v1-uuid-h9j3k6l2 -->
+<!-- BUSINESS_PURPOSE: Displays the current honest balance and account name in a prominent header card per specbook Chapter 5 dashboard overview -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
     <main>
         <article>
             <header>Current Honest Balance</header>
             <h1 style="color: green">${{printf "%.2f" .Balance}}</h1>
             <footer>Account: {{.Account}}</footer>
         </article>
+<!-- CHUNK_END: balance-header-v1-uuid-h9j3k6l2 -->
 
+<!-- CHUNK_START: matchmaker-section-v1-uuid-k1l5m8n4 -->
+<!-- BUSINESS_PURPOSE: Implements the Matchmaker UI with side-by-side grids for manual user entries and unmatched bank records, including card selection, dimming, and confirm/cancel controls per specbook Chapter 5 reconciliation flow -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
         <section id="matchmaker">
             <h3>The Matchmaker</h3>
             <div class="match-grid">
@@ -71,7 +88,11 @@
                 </article>
             </div>
         </section>
+<!-- CHUNK_END: matchmaker-section-v1-uuid-k1l5m8n4 -->
 
+<!-- CHUNK_START: upload-section-v1-uuid-n4p7q2r6 -->
+<!-- BUSINESS_PURPOSE: Provides the OFX file upload form for importing bank truth per specbook Chapter 2 File Ingestion & Reconciliation -->
+<!-- SPEC_LINK: specbook-chapter-2 -->
         <hr>
 
         <section>
@@ -83,7 +104,11 @@
                 </div>
             </form>
         </section>
+<!-- CHUNK_END: upload-section-v1-uuid-n4p7q2r6 -->
 
+<!-- CHUNK_START: history-table-section-v1-uuid-p8r3s9t5 -->
+<!-- BUSINESS_PURPOSE: Renders the paginated "Recent Settled History" table of cleared/reconciled transactions, including empty state and infinite scroll trigger row per specbook Chapter 5 UI & Operational Flows -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
         <h3>Recent Settled History</h3>
         <figure>
             <table>
@@ -115,7 +140,11 @@
             </table>
         </figure>
     </main>
+<!-- CHUNK_END: history-table-section-v1-uuid-p8r3s9t5 -->
 
+<!-- CHUNK_START: dashboard-scripts-v1-uuid-q2t6u1v4 -->
+<!-- BUSINESS_PURPOSE: Contains all client-side JavaScript for matchmaker card selection, reconciliation confirmation, void entry, and infinite scroll loading of history per specbook Chapter 5 interactive UI behaviors -->
+<!-- SPEC_LINK: specbook-chapter-5 -->
 <script>
     let selectedUser = null;
     let selectedBank = null;
@@ -242,3 +271,4 @@
     }
 </script>
 </body></html>
+<!-- CHUNK_END: dashboard-scripts-v1-uuid-q2t6u1v4 -->
