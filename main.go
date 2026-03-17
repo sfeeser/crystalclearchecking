@@ -3,8 +3,6 @@ package main
 // CHUNK_START: imports-and-package-v1-uuid-1d4e7b9a
 // BUSINESS_PURPOSE: Declares the package and lists all required imports for the application. This is the single source of truth for dependencies to prevent missing/extra imports during refactors or feature additions. Keep minimal and aligned with used stdlib + external packages (qrcode only for pairing QR).
 // SPEC_LINK: specbook-chapter-0 (core intent) + non-negotiables on minimal dependencies
-// DEPENDENCIES: none (foundation layer)
-// NOTES: If adding new features (e.g., JSON handling, email), update this chunk first and recompile to verify.
 import (
 	"flag"
 	"fmt"
@@ -21,7 +19,6 @@ import (
 // CHUNK_START: cli-flags-and-subcommands-v1-uuid-8f3a2b1c
 // BUSINESS_PURPOSE: Parses command-line flags and handles subcommands like 'backup' per specbook Chapter 1.1 (Data Durability & Hot Backup)
 // SPEC_LINK: specbook-chapter-1.1
-// DEPENDENCIES: store-hot-backup
 func main() {
 	// 1. CLI Flags
 	dbPath := flag.String("db", filepath.Join(".", "data", "ledger.db"), "Path to SQLite database")
@@ -54,7 +51,6 @@ func main() {
 // CHUNK_START: persistence-init-v1-uuid-4e9d7f2a
 // BUSINESS_PURPOSE: Initializes the SQLite store/persistence layer at startup per specbook Chapter 1 (Data Model & Persistence)
 // SPEC_LINK: specbook-chapter-1
-// DEPENDENCIES: store-new
 var store *Store // global for simplicity in this POC; consider passing in production
 
 func main() { // continued
@@ -70,7 +66,6 @@ func main() { // continued
 // CHUNK_START: main-router-setup-v1-uuid-c6b8e3f9
 // BUSINESS_PURPOSE: Sets up the protected HTTP multiplexer for core application routes (dashboard, entry, upload, etc.) per specbook Chapter 5 (UI & Operational Flows)
 // SPEC_LINK: specbook-chapter-5
-// DEPENDENCIES: jwt-validate, dashboard-handler, add-check-handler, upload-handler, reconcile-handler, void-handler
 func main() { // continued
 	// 3. Define Routes (Chapter 5)
 	// Operational Routes (Protected by JWT)
@@ -86,7 +81,6 @@ func main() { // continued
 // CHUNK_START: pairing-router-setup-v1-uuid-2a1d9e5b
 // BUSINESS_PURPOSE: Sets up the public pairing multiplexer (non-JWT) for device proximity authorization per specbook Chapter 4 (Pairing & Security)
 // SPEC_LINK: specbook-chapter-4
-// DEPENDENCIES: pair-approve-handler, pairing-nonce-generator, require-loopback-middleware
 func main() { // continued
 	// Public/Pairing Routes (Chapter 4)
 	pairMux := http.NewServeMux()
@@ -145,7 +139,6 @@ func main() { // continued
 // CHUNK_START: pairing-server-start-v1-uuid-7f4c1a8d
 // BUSINESS_PURPOSE: Starts the background pairing listener on a dedicated port (LAN-enabled for phone scanning) per specbook Chapter 4 (proximity pairing)
 // SPEC_LINK: specbook-chapter-4
-// DEPENDENCIES: pair-mux
 func main() { // continued
 	// 4. Start Listeners
 	// Loopback listener for the "Fortress"
@@ -164,7 +157,6 @@ func main() { // continued
 // CHUNK_START: main-ui-server-start-v1-uuid-9e2b5f6d
 // BUSINESS_PURPOSE: Starts the primary web server for the ledger UI on the configured port per specbook Chapter 5 (main application access)
 // SPEC_LINK: specbook-chapter-5
-// DEPENDENCIES: main-mux, jwt-middleware
 func main() { // continued
 	// 2. The Main UI (The "Ledger")
 	uiAddr := fmt.Sprintf(":%d", *uiPort)
