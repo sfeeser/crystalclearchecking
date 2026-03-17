@@ -1,8 +1,15 @@
 package main
 
-// DBSchema contains the full SQL table definitions for CCC.
-// It uses PRAGMA journal_mode = WAL to handle concurrent read/writes
-// during hot backups and local use.
+// CHUNK_START: imports-and-package-v1-uuid-s6t2v9w4
+// BUSINESS_PURPOSE: Declares the package for the database schema definition. No external imports are currently required, but this chunk serves as the placeholder for any future additions (e.g., migration tools, schema validation libs). Single source of truth for schema-related dependencies.
+// SPEC_LINK: specbook-chapter-1 (Data Model) + non-negotiables on minimal dependencies
+// CHUNK_VERSION_COMMENT: Minimal; ready for expansion if schema tooling is added
+// (No imports needed at present)
+// CHUNK_END: imports-and-package-v1-uuid-s6t2v9w4
+
+// CHUNK_START: dbschema-constant-v1-uuid-x8y3z1r7
+// BUSINESS_PURPOSE: Defines the complete SQLite schema as a constant string, including WAL mode for concurrency, accounts table for truth anchors, transactions table for ledger entries, and unique constraints/indices to enforce financial integrity and prevent duplicates per specbook Chapter 1 (Data Model) and Chapter 1.1 (Durability & Hot Backup)
+// SPEC_LINK: specbook-chapter-1 + chapter-1.1
 const DBSchema = `
 PRAGMA journal_mode = WAL;
 
