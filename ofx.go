@@ -1,5 +1,8 @@
 package main
 
+// CHUNK_START: imports-and-package-v1-uuid-g4j8n5q2
+// BUSINESS_PURPOSE: Declares the package and lists all required imports for OFX ingestion, parsing, and reconciliation. Single source of truth for dependencies related to file parsing, database interaction, and amount handling. Keep minimal; add new imports here during OFX-related refactors.
+// SPEC_LINK: specbook-chapter-2 (File Ingestion & Reconciliation) + non-negotiables on minimal dependencies
 import (
 	"database/sql"
 	"fmt"
@@ -9,9 +12,11 @@ import (
 
 	"github.com/aclindsa/ofxgo"
 )
+// CHUNK_END: imports-and-package-v1-uuid-g4j8n5q2
 
-// IngestOFX is the entry point for bank file processing.
-// It parses the file, updates the balance anchor, and reconciles transactions.
+// CHUNK_START: ingest-ofx-entrypoint-v1-uuid-k7m9p3r6
+// BUSINESS_PURPOSE: Main entry point for ingesting an OFX file: parses the response, sets the balance anchor from the bank's ledger balance, and processes each transaction for reconciliation per specbook Chapter 2
+// SPEC_LINK: specbook-chapter-2
 func (s *Store) IngestOFX(r io.Reader) (int, error) {
 	parsed, err := ofxgo.ParseResponse(r)
 	if err != nil {
@@ -55,8 +60,11 @@ func (s *Store) IngestOFX(r io.Reader) (int, error) {
 	}
 	return count, nil
 }
+// CHUNK_END: ingest-ofx-entrypoint-v1-uuid-k7m9p3r6
 
-// reconcileOFXTransaction handles deduplication and matching against manual entries.
+// CHUNK_START: reconcile-ofx-transaction-v1-uuid-l2n6q8t4
+// BUSINESS_PURPOSE: Reconciles a single OFX transaction: attempts perfect match by check number, falls back to fuzzy amount match for rogue flagging, inserts or skips on fitid conflict, and sets cleared status per specbook Chapter 2 reconciliation rules
+// SPEC_LINK: specbook-chapter-2
 func (s *Store) reconcileOFXTransaction(accountName string, t ofxgo.Transaction) error {
 	cents, err := parseOFXAmount(t.TrnAmt.String())
 	if err != nil {
@@ -110,8 +118,12 @@ func (s *Store) reconcileOFXTransaction(accountName string, t ofxgo.Transaction)
 
 	return err
 }
+// CHUNK_END: reconcile-ofx-transaction-v1-uuid-l2n6q8t4
 
-// parseOFXAmount converts "123.45" to 12345 (int64 cents) without using float64.
+// CHUNK_START: parse-ofx-amount-v1-uuid-m9p4r1u5
+// BUSINESS_PURPOSE: Converts OFX amount strings (e.g. "123.45" or "-45.67") to integer cents without floating-point precision issues; handles negatives, padding/truncation, and empty values per specbook financial integrity rules
+// SPEC_LINK: specbook-chapter-1 (Data Model) + Chapter 2 (amount handling)
+// CHUNK_VERSION_COMMENT: Core helper; used in ingest and balance anchor
 func parseOFXAmount(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -156,3 +168,4 @@ func parseOFXAmount(s string) (int64, error) {
 
 	return totalCents, nil
 }
+// CHUNK_END: parse-ofx-amount-v1-uuid-m9p4r1u5
