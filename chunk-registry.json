@@ -1,0 +1,256 @@
+{
+  "chunks": [
+    {
+      "uuid": "imports-and-package-v1-uuid-1d4e7b9a",
+      "short_name": "imports-and-package",
+      "file_path": "main.go",
+      "business_purpose": "Declares the package and lists all required imports for the application. This is the single source of truth for dependencies to prevent missing/extra imports during refactors or feature additions. Keep minimal and aligned with used stdlib + external packages (qrcode only for pairing QR).",
+      "spec_link": "specbook-chapter-0 (core intent) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "cli-flags-and-subcommands-v1-uuid-8f3a2b1c",
+      "short_name": "cli-flags-and-subcommands",
+      "file_path": "main.go",
+      "business_purpose": "Parses command-line flags and handles subcommands like 'backup' per specbook Chapter 1.1 (Data Durability & Hot Backup)",
+      "spec_link": "specbook-chapter-1.1"
+    },
+    {
+      "uuid": "persistence-init-v1-uuid-4e9d7f2a",
+      "short_name": "persistence-init",
+      "file_path": "main.go",
+      "business_purpose": "Initializes the SQLite store/persistence layer at startup per specbook Chapter 1 (Data Model & Persistence)",
+      "spec_link": "specbook-chapter-1"
+    },
+    {
+      "uuid": "main-router-setup-v1-uuid-c6b8e3f9",
+      "short_name": "main-router-setup",
+      "file_path": "main.go",
+      "business_purpose": "Sets up the protected HTTP multiplexer for core application routes (dashboard, entry, upload, etc.) per specbook Chapter 5 (UI & Operational Flows)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "pairing-router-setup-v1-uuid-2a1d9e5b",
+      "short_name": "pairing-router-setup",
+      "file_path": "main.go",
+      "business_purpose": "Sets up the public pairing multiplexer (non-JWT) for device proximity authorization per specbook Chapter 4 (Pairing & Security)",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "pairing-server-start-v1-uuid-7f4c1a8d",
+      "short_name": "pairing-server-start",
+      "file_path": "main.go",
+      "business_purpose": "Starts the background pairing listener on a dedicated port (LAN-enabled for phone scanning) per specbook Chapter 4 (proximity pairing)",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "main-ui-server-start-v1-uuid-9e2b5f6d",
+      "short_name": "main-ui-server-start",
+      "file_path": "main.go",
+      "business_purpose": "Starts the primary web server for the ledger UI on the configured port per specbook Chapter 5 (main application access)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "pairing-nonce-struct-and-store-v1-uuid-3b9f2e1d",
+      "short_name": "pairing-nonce-struct-and-store",
+      "file_path": "auth.go",
+      "business_purpose": "Defines the in-memory PairingNonce structure and the global map + mutex for short-lived pairing tokens per specbook Chapter 4 (proximity pairing security)",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "generate-pairing-nonce-v1-uuid-5c8a4f7e",
+      "short_name": "generate-pairing-nonce",
+      "file_path": "auth.go",
+      "business_purpose": "Generates a cryptographically secure 16-byte hex token with 10-minute expiry for device pairing, stored in-memory with mutex protection per specbook Chapter 4",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "require-loopback-middleware-v1-uuid-7d2e6b9a",
+      "short_name": "require-loopback-middleware",
+      "file_path": "auth.go",
+      "business_purpose": "Middleware that enforces loopback-only access (127.0.0.1 or ::1) for pairing initiation to prevent external exposure per specbook Chapter 4 security non-negotiables",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "jwt-claims-and-create-token-v1-uuid-9f1c3a8d",
+      "short_name": "jwt-claims-and-create-token",
+      "file_path": "auth.go",
+      "business_purpose": "Defines JWT Claims structure and issues a 90-day signed token for paired devices containing the device label per specbook Chapter 4 (persistent pairing)",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "validate-jwt-middleware-v1-uuid-2e4b7f9c",
+      "short_name": "validate-jwt-middleware",
+      "file_path": "auth.go",
+      "business_purpose": "Middleware that validates JWT from cookie and protects all operational endpoints; redirects unauthorized requests and injects device label into context per specbook Chapter 5 (operational flows security)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "imports-and-package-v1-uuid-h2k9m3p7",
+      "short_name": "imports-and-package",
+      "file_path": "handlers.go",
+      "business_purpose": "Declares the package and lists all required imports for HTTP handlers. This is the single source of truth for dependencies used in request handling, response formatting, and time/date logic. Keep minimal; add new imports here first during refactors or feature additions.",
+      "spec_link": "specbook-chapter-5 (UI & Operational Flows) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "dashboard-handler-v1-uuid-a3c7d2f8",
+      "short_name": "dashboard-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Renders the main dashboard (\"Honest Truth\" view) with honest balance, paginated cleared history, pending user entries, and unmatched bank records per specbook Chapter 5 (UI & Operational Flows)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "add-check-handler-v1-uuid-b8e4f1c9",
+      "short_name": "add-check-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Handles GET (show form) and POST (manual paper check entry) with strict financial parsing (cents conversion, always negative outflow) per specbook Chapter 5 (transaction entry flow)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "upload-ofx-handler-v1-uuid-c1a9e6b2",
+      "short_name": "upload-ofx-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Handles GET (upload form) and POST (OFX file ingestion & reconciliation trigger) per specbook Chapter 2 (File Ingestion & Reconciliation)",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "pair-approve-handler-v1-uuid-d5f2c7a4",
+      "short_name": "pair-approve-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Consumes a valid pairing nonce (one-time use) and issues a 90-day JWT cookie, redirecting to the main UI per specbook Chapter 4 (pairing completion)",
+      "spec_link": "specbook-chapter-4"
+    },
+    {
+      "uuid": "reconcile-handler-v1-uuid-e9b3d8f1",
+      "short_name": "reconcile-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Handles POST requests to reconcile a manual user entry with a bank/ofx record per specbook Chapter 2 (reconciliation logic)",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "void-handler-v1-uuid-f2c4e9a6",
+      "short_name": "void-handler",
+      "file_path": "handlers.go",
+      "business_purpose": "Handles POST to void/mark a transaction as voided per specbook Chapter 5 (transaction management)",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "imports-and-package-v1-uuid-g4j8n5q2",
+      "short_name": "imports-and-package",
+      "file_path": "ofx.go",
+      "business_purpose": "Declares the package and lists all required imports for OFX ingestion, parsing, and reconciliation. Single source of truth for dependencies related to file parsing, database interaction, and amount handling. Keep minimal; add new imports here during OFX-related refactors.",
+      "spec_link": "specbook-chapter-2 (File Ingestion & Reconciliation) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "ingest-ofx-entrypoint-v1-uuid-k7m9p3r6",
+      "short_name": "ingest-ofx-entrypoint",
+      "file_path": "ofx.go",
+      "business_purpose": "Main entry point for ingesting an OFX file: parses the response, sets the balance anchor from the bank's ledger balance, and processes each transaction for reconciliation per specbook Chapter 2",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "reconcile-ofx-transaction-v1-uuid-l2n6q8t4",
+      "short_name": "reconcile-ofx-transaction",
+      "file_path": "ofx.go",
+      "business_purpose": "Reconciles a single OFX transaction: attempts perfect match by check number, falls back to fuzzy amount match for rogue flagging, inserts or skips on fitid conflict, and sets cleared status per specbook Chapter 2 reconciliation rules",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "parse-ofx-amount-v1-uuid-m9p4r1u5",
+      "short_name": "parse-ofx-amount",
+      "file_path": "ofx.go",
+      "business_purpose": "Converts OFX amount strings (e.g. \"123.45\" or \"-45.67\") to integer cents without floating-point precision issues; handles negatives, padding/truncation, and empty values per specbook financial integrity rules",
+      "spec_link": "specbook-chapter-1 (Data Model) + Chapter 2 (amount handling)"
+    },
+    {
+      "uuid": "imports-and-package-v1-uuid-s6t2v9w4",
+      "short_name": "imports-and-package",
+      "file_path": "schema.go",
+      "business_purpose": "Declares the package for the database schema definition. No external imports are currently required, but this chunk serves as the placeholder for any future additions (e.g., migration tools, schema validation libs). Single source of truth for schema-related dependencies.",
+      "spec_link": "specbook-chapter-1 (Data Model) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "dbschema-constant-v1-uuid-x8y3z1r7",
+      "short_name": "dbschema-constant",
+      "file_path": "schema.go",
+      "business_purpose": "Defines the complete SQLite schema as a constant string, including WAL mode for concurrency, accounts table for truth anchors, transactions table for ledger entries, and unique constraints/indices to enforce financial integrity and prevent duplicates per specbook Chapter 1 (Data Model) and Chapter 1.1 (Durability & Hot Backup)",
+      "spec_link": "specbook-chapter-1 + chapter-1.1"
+    },
+    {
+      "uuid": "imports-and-package-v1-uuid-p5q9r2s8",
+      "short_name": "imports-and-package",
+      "file_path": "store.go",
+      "business_purpose": "Declares the package and lists all required imports for the data access layer (Store). Single source of truth for database, file path, and time handling dependencies. Keep minimal; add new imports here during data-layer refactors.",
+      "spec_link": "specbook-chapter-1 (Data Model & Persistence) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "store-struct-and-newstore-v1-uuid-t3u7v4w1",
+      "short_name": "store-struct-and-newstore",
+      "file_path": "store.go",
+      "business_purpose": "Defines the Store struct (db connection holder) and initializes the SQLite connection, creates directories, enables WAL mode, runs migrations, sets schema version, and verifies integrity per specbook Chapter 1 persistence requirements",
+      "spec_link": "specbook-chapter-1 + chapter-1.1"
+    },
+    {
+      "uuid": "migrate-method-v1-uuid-v8w2x5y9",
+      "short_name": "migrate-method",
+      "file_path": "store.go",
+      "business_purpose": "Executes initial schema creation for transactions, balance_anchors, and accounts tables if they do not exist per specbook Chapter 1 data model",
+      "spec_link": "specbook-chapter-1"
+    },
+    {
+      "uuid": "verify-integrity-v1-uuid-x1y6z3a7",
+      "short_name": "verify-integrity",
+      "file_path": "store.go",
+      "business_purpose": "Runs SQLite PRAGMA integrity_check to verify database consistency after initialization or backup per specbook Chapter 1.1 durability non-negotiables",
+      "spec_link": "specbook-chapter-1.1"
+    },
+    {
+      "uuid": "get-honest-balance-v1-uuid-z4a9b2c8",
+      "short_name": "get-honest-balance",
+      "file_path": "store.go",
+      "business_purpose": "Calculates the \"honest\" current balance by applying post-anchor transactions to the latest balance anchor, handling missing anchors gracefully per specbook Chapter 1 data model",
+      "spec_link": "specbook-chapter-1"
+    },
+    {
+      "uuid": "hot-backup-v1-uuid-b7c3d6e1",
+      "short_name": "hot-backup",
+      "file_path": "store.go",
+      "business_purpose": "Performs a hot backup using VACUUM INTO to create a consistent snapshot without locking the live database per specbook Chapter 1.1 durability & hot backup requirements",
+      "spec_link": "specbook-chapter-1.1"
+    },
+    {
+      "uuid": "get-account-by-extid-v1-uuid-d9e4f2g5",
+      "short_name": "get-account-by-extid",
+      "file_path": "store.go",
+      "business_purpose": "Maps a bank's external account ID (from OFX) to the internal account name for reconciliation per specbook Chapter 2 ingestion flow",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "reconcile-transaction-v1-uuid-f2g8h4j9",
+      "short_name": "reconcile-transaction",
+      "file_path": "store.go",
+      "business_purpose": "Reconciles a manual entry with a bank transaction by deleting the bank record and updating the manual one with bank's fitid/description/amount in a transaction per specbook Chapter 2 reconciliation rules",
+      "spec_link": "specbook-chapter-2"
+    },
+    {
+      "uuid": "void-transaction-v1-uuid-h5j1k7m3",
+      "short_name": "void-transaction",
+      "file_path": "store.go",
+      "business_purpose": "Marks a transaction as voided (only if not already cleared) per specbook Chapter 5 transaction management",
+      "spec_link": "specbook-chapter-5"
+    },
+    {
+      "uuid": "imports-package-embed-templates-v1-uuid-m7n4p9q2",
+      "short_name": "imports-package-embed-templates",
+      "file_path": "templates.go",
+      "business_purpose": "Declares the package, imports required modules, and embeds all HTML templates from the templates/ directory using go:embed. This is the single source of truth for UI template dependencies and static file inclusion.",
+      "spec_link": "specbook-chapter-5 (UI & Operational Flows) + non-negotiables on minimal dependencies"
+    },
+    {
+      "uuid": "render-template-helper-v1-uuid-r2s8t5v1",
+      "short_name": "render-template-helper",
+      "file_path": "templates.go",
+      "business_purpose": "Provides a centralized helper function to execute and render a named HTML template with provided data, handling errors gracefully with HTTP 500 response per specbook Chapter 5 UI rendering requirements",
+      "spec_link": "specbook-chapter-5"
+    }
+  ]
+}
